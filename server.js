@@ -35,23 +35,64 @@ function defaultSeniorClass() {
   return now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
-function loadDb() {
+// Storage: a free Supabase database when SUPABASE_URL is set (for hosting),
+// otherwise a local JSON file (for running on your own computer).
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || '';
+const TABLE_URL = `${SUPABASE_URL}/rest/v1/csf_store`;
+
+function supabaseHeaders() {
+  const h = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
+  // Legacy service_role keys are JWTs and also go in Authorization.
+  if (SUPABASE_KEY.startsWith('eyJ')) h.Authorization = `Bearer ${SUPABASE_KEY}`;
+  return h;
+}
+
+const newDb = () => ({ settings: { seniorClass: defaultSeniorClass() }, board: SEED_BOARD.slice(), students: {} });
+
+async function loadDb() {
+  if (SUPABASE_URL) {
+    const res = await fetch(`${TABLE_URL}?id=eq.1&select=data`, { headers: supabaseHeaders() });
+    if (!res.ok) throw new Error(`Supabase load failed (${res.status}): ${await res.text()}`);
+    const rows = await res.json();
+    if (rows.length) return rows[0].data;
+    const fresh = newDb();
+    await saveDb(fresh);
+    return fresh;
+  }
   if (!fs.existsSync(DB_FILE)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    const db = { settings: { seniorClass: defaultSeniorClass() }, board: SEED_BOARD.slice(), students: {} };
-    saveDb(db);
-    return db;
+    const fresh = newDb();
+    await saveDb(fresh);
+    return fresh;
   }
   return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 }
 
+// Saves run one at a time so an older save can never overwrite a newer one.
+let saveChain = Promise.resolve();
 function saveDb(db) {
-  const tmp = DB_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
-  fs.renameSync(tmp, DB_FILE);
+  const snapshot = JSON.stringify(db);
+  const run = async () => {
+    if (SUPABASE_URL) {
+      const res = await fetch(TABLE_URL, {
+        method: 'POST',
+        headers: { ...supabaseHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: `[{"id":1,"data":${snapshot}}]`,
+      });
+      if (!res.ok) throw new Error(`Supabase save failed (${res.status}): ${await res.text()}`);
+      return;
+    }
+    const tmp = DB_FILE + '.tmp';
+    fs.writeFileSync(tmp, snapshot);
+    fs.renameSync(tmp, DB_FILE);
+  };
+  const p = saveChain.then(run);
+  saveChain = p.catch(() => {});
+  return p;
 }
 
-let db = loadDb();
+let db;
 
 const isId = v => typeof v === 'string' && /^\d{7}$/.test(v);
 const isBoard = id => db.board.includes(id);
@@ -118,13 +159,13 @@ async function handleApi(req, res, url) {
       if (!Number.isInteger(classOf)) return send(res, 400, { error: 'Pick a class.' });
       if (db.students[sid]) return send(res, 409, { error: 'That ID is already on the list.' });
       db.students[sid] = { name, classOf, progress: {} };
-      saveDb(db);
+      await saveDb(db);
       return send(res, 201, studentView(sid));
     }
     if (!db.students[id]) return send(res, 404, { error: 'Student not found.' });
     if (method === 'DELETE' && parts.length === 2) {
       delete db.students[id];
-      saveDb(db);
+      await saveDb(db);
       return send(res, 200, { ok: true });
     }
     if (method === 'PATCH' && parts.length === 2) {
@@ -139,7 +180,7 @@ async function handleApi(req, res, url) {
         if (!Number.isInteger(classOf)) return send(res, 400, { error: 'Invalid class.' });
         s.classOf = classOf;
       }
-      saveDb(db);
+      await saveDb(db);
       return send(res, 200, studentView(id));
     }
     if (method === 'PUT' && parts[2] === 'progress') {
@@ -149,7 +190,7 @@ async function handleApi(req, res, url) {
       s.progress = s.progress || {};
       s.progress[term] = s.progress[term] || {};
       s.progress[term][field] = !!value;
-      saveDb(db);
+      await saveDb(db);
       return send(res, 200, studentView(id));
     }
   }
@@ -160,13 +201,13 @@ async function handleApi(req, res, url) {
       const id = String(body.id || '').trim();
       if (!isId(id)) return send(res, 400, { error: 'ID must be 7 digits.' });
       if (!isBoard(id)) db.board.push(id);
-      saveDb(db);
+      await saveDb(db);
       return send(res, 200, db.board);
     }
     if (method === 'DELETE' && parts[1]) {
       if (db.board.length <= 1) return send(res, 400, { error: "Can't remove the last board member." });
       db.board = db.board.filter(b => b !== parts[1]);
-      saveDb(db);
+      await saveDb(db);
       return send(res, 200, db.board);
     }
   }
@@ -177,7 +218,7 @@ async function handleApi(req, res, url) {
       return send(res, 400, { error: 'Enter a valid year, e.g. 2027.' });
     }
     db.settings.seniorClass = seniorClass;
-    saveDb(db);
+    await saveDb(db);
     return send(res, 200, db.settings);
   }
 
@@ -196,11 +237,26 @@ function serveStatic(res, pathname) {
   });
 }
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/')) {
-    try { await handleApi(req, res, url); } catch (e) { send(res, 400, { error: e.message }); }
+    try {
+      await handleApi(req, res, url);
+    } catch (e) {
+      console.error(e);
+      send(res, e.message === 'Bad JSON' ? 400 : 500, { error: e.message === 'Bad JSON' ? 'Bad request.' : "Couldn't save. Please try again." });
+    }
   } else {
     serveStatic(res, url.pathname);
   }
-}).listen(PORT, () => console.log(`CSF Tracker running at http://localhost:${PORT}`));
+});
+
+loadDb()
+  .then(loaded => {
+    db = loaded;
+    server.listen(PORT, () => console.log(`CSF Tracker running at http://localhost:${PORT} (${SUPABASE_URL ? 'Supabase' : 'local file'} storage)`));
+  })
+  .catch(e => {
+    console.error(e.message);
+    process.exit(1);
+  });
