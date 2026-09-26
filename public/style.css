@@ -48,8 +48,8 @@ h1, h2, h3 { color: var(--navy-dark); margin: 0 0 6px; }
 /* Login */
 .login { max-width: 400px; margin: 60px auto; text-align: center; }
 .login h1 { font-size: 1.7rem; }
-#login-form { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
-#login-id { font-size: 1.4rem; text-align: center; letter-spacing: .15em; }
+#login-form, #code-form { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+#login-id, #login-code { font-size: 1.4rem; text-align: center; letter-spacing: .15em; }
 
 input, select {
   font: inherit; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text);

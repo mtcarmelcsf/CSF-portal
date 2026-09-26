@@ -25,7 +25,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 async function api(method, url, body) {
   const res = await fetch('/api' + url, {
     method,
-    headers: { 'Content-Type': 'application/json', 'X-User-Id': session ? session.id : '' },
+    headers: { 'Content-Type': 'application/json', 'X-User-Id': session ? session.id : '', 'X-Board-Code': session ? session.code || '' : '' },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -75,10 +75,33 @@ function renderLogin(error = '') {
   });
 }
 
-async function login(id) {
+function renderCode(id, error = '') {
+  app.innerHTML = `
+    <section class="login card">
+      <h1>Board login</h1>
+      <p class="muted">Enter the board code for ID ${esc(id)}.</p>
+      <form id="code-form">
+        <input id="login-code" type="password" autocomplete="off" placeholder="Board code" aria-label="Board code" required>
+        <button class="btn primary" type="submit">Continue</button>
+        <button class="btn" type="button" id="code-back">Back</button>
+      </form>
+      <p class="error" role="alert">${esc(error)}</p>
+    </section>`;
+  const input = document.getElementById('login-code');
+  input.focus();
+  document.getElementById('code-back').addEventListener('click', () => renderLogin());
+  document.getElementById('code-form').addEventListener('submit', e => {
+    e.preventDefault();
+    login(id, input.value.trim());
+  });
+}
+
+async function login(id, code) {
   try {
-    session = await api('POST', '/login', { id });
-    try { sessionStorage.setItem('csf-id', id); } catch {}
+    const res = await api('POST', '/login', { id, code });
+    if (res.needCode) return renderCode(id);
+    session = { ...res, code };
+    try { sessionStorage.setItem('csf-id', id); sessionStorage.setItem('csf-code', code || ''); } catch {}
     logoutBtn.hidden = false;
     if (session.role === 'board') {
       tab = 'students';
@@ -87,14 +110,14 @@ async function login(id) {
     render();
   } catch (err) {
     session = null;
-    renderLogin(err.message);
+    if (code) renderCode(id, err.message); else renderLogin(err.message);
   }
 }
 
 logoutBtn.addEventListener('click', () => {
   session = null;
   openIds.clear();
-  try { sessionStorage.removeItem('csf-id'); } catch {}
+  try { sessionStorage.removeItem('csf-id'); sessionStorage.removeItem('csf-code'); } catch {}
   renderLogin();
 });
 
@@ -372,6 +395,6 @@ function bindBoard() {
 }
 
 // ---------- start ----------
-let saved = null;
-try { saved = sessionStorage.getItem('csf-id'); } catch {}
-if (saved) login(saved); else renderLogin();
+let saved = null, savedCode = '';
+try { saved = sessionStorage.getItem('csf-id'); savedCode = sessionStorage.getItem('csf-code') || ''; } catch {}
+if (saved) login(saved, savedCode || undefined); else renderLogin();

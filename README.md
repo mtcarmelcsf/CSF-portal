@@ -10,7 +10,7 @@ A trimester is **complete** when Dues, Service Hours, and Application are all ch
 
 ## Board members
 
-Board IDs see a **Students** tab and a **Settings** tab:
+Board IDs are asked for the **board code** (`K7`) after entering their ID. Then they see a **Students** tab and a **Settings** tab:
 
 - **Students**: add students (ID, name, Class of…), search, click a name to open their checklist, check off requirements, change their class, or remove them.
 - **Settings**:
@@ -31,4 +31,6 @@ Then open http://localhost:3000. Data is saved to `data/db.json`. Set `PORT` or 
 
 To put it online, deploy to any Node host (Render, Railway, Replit, etc.) using `npm start`. Make sure the `data/` folder is on persistent storage so your data isn't lost on restart.
 
-> Note: login is by school ID only, with no password. Anyone who knows a board member's ID can log in as that board member, so keep board IDs private.
+To change the board code, set the `BOARD_CODE` environment variable on your host (default `K7`). Codes are not case-sensitive.
+
+> Note: students log in by school ID only. Board access needs a board ID **and** the board code, so share the code only with board members.

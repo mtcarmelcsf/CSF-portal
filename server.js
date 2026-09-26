@@ -11,6 +11,9 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // Initial board member(s). Only used the first time the database is created.
 const SEED_BOARD = ['1916869'];
+// Code every board member must enter after their ID.
+const BOARD_CODE = process.env.BOARD_CODE || 'K7';
+const codeOk = c => String(c || '').trim().toUpperCase() === BOARD_CODE.toUpperCase();
 
 // Year 2 = sophomore (tri 2–3), year 3 = junior (tri 1–3), year 4 = senior (tri 1–3).
 const TERMS = [
@@ -87,6 +90,8 @@ async function handleApi(req, res, url) {
     const id = String(body.id || '').trim();
     if (!isId(id)) return send(res, 400, { error: 'Please enter a 7-digit ID.' });
     if (isBoard(id)) {
+      if (!body.code) return send(res, 200, { needCode: true });
+      if (!codeOk(body.code)) return send(res, 401, { error: 'Incorrect board code.' });
       return send(res, 200, { role: 'board', id, student: studentView(id) || null, settings: db.settings, terms: TERMS });
     }
     if (db.students[id]) {
@@ -97,7 +102,7 @@ async function handleApi(req, res, url) {
 
   // Everything below is board-only.
   const actor = String(req.headers['x-user-id'] || '');
-  if (!isBoard(actor)) return send(res, 403, { error: 'Board access required.' });
+  if (!isBoard(actor) || !codeOk(req.headers['x-board-code'])) return send(res, 403, { error: 'Board access required.' });
 
   if (parts[0] === 'students') {
     const id = parts[1];
