@@ -7,9 +7,9 @@ const REQS = [
   ['application', 'Application'],
 ];
 const YEARS = [
-  { grade: 10, label: 'Year 2', tris: 'Trimesters 2–3' },
-  { grade: 11, label: 'Year 3', tris: 'Trimesters 1–3' },
-  { grade: 12, label: 'Year 4', tris: 'Trimesters 1–3' },
+  { grade: 10, label: 'Sophomore', tris: 'Trimesters 2–3' },
+  { grade: 11, label: 'Junior', tris: 'Trimesters 1–3' },
+  { grade: 12, label: 'Senior', tris: 'Trimesters 1–3' },
 ];
 
 let session = null; // { id, role, student, settings, terms }
@@ -43,11 +43,6 @@ function toast(msg) {
 
 // Grade a "Class of" year is in right now (12 = senior).
 const currentGrade = classOf => 12 - (classOf - session.settings.seniorClass);
-// School year label (e.g. "2025–26") for when this class was/will be in a grade.
-function schoolYear(classOf, grade) {
-  const end = classOf - (12 - grade);
-  return `${end - 1}–${String(end).slice(-2)}`;
-}
 const termsFor = grade => session.terms.filter(t => t.grade === grade);
 const isComplete = p => p && p.dues && p.service && p.application;
 
@@ -142,7 +137,7 @@ function progressHtml(student) {
 
   for (const y of YEARS) {
     html += `<section class="year">
-      <div class="year-title"><h2>${schoolYear(student.classOf, y.grade)}</h2><span class="muted">${y.label} · ${y.tris}</span></div>
+      <div class="year-title"><h2>${y.label} Year</h2><span class="muted">${y.tris}</span></div>
       <div class="terms">`;
     for (const t of termsFor(y.grade)) {
       const status = termStatus(student, t);
@@ -225,7 +220,7 @@ function memberHtml(s) {
         const p = s.progress[t.key] || {};
         const status = termStatus(s, t);
         html += `<tr class="${status === 'done' ? 'complete' : ''}">
-          <td>${schoolYear(s.classOf, y.grade)} · Tri ${t.tri}</td>
+          <td>${y.label} · Tri ${t.tri}</td>
           ${REQS.map(([k, l]) => `<td><input type="checkbox" aria-label="${l}" data-term="${t.key}" data-field="${k}" ${p[k] ? 'checked' : ''}></td>`).join('')}
           <td><span class="pill ${status}">${{ done: 'Complete', missing: 'Incomplete', upcoming: 'Upcoming' }[status]}</span></td>
         </tr>`;

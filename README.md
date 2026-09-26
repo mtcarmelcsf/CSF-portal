@@ -2,9 +2,9 @@
 
 A simple website where CSF students log in with their 7-digit school ID and see their progress across all three years:
 
-- **Year 2**: Trimesters 2–3
-- **Year 3**: Trimesters 1–3
-- **Year 4**: Trimesters 1–3
+- **Sophomore**: Trimesters 2–3
+- **Junior**: Trimesters 1–3
+- **Senior**: Trimesters 1–3
 
 A trimester is **complete** when Dues, Service Hours, and Application are all checked. Students see which items are still missing.
 

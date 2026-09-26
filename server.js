@@ -15,7 +15,7 @@ const SEED_BOARD = ['1916869'];
 const BOARD_CODE = process.env.BOARD_CODE || 'K7';
 const codeOk = c => String(c || '').trim().toUpperCase() === BOARD_CODE.toUpperCase();
 
-// Year 2 = sophomore (tri 2–3), year 3 = junior (tri 1–3), year 4 = senior (tri 1–3).
+// Sophomore (tri 2–3), junior (tri 1–3), senior (tri 1–3). No freshman year.
 const TERMS = [
   { key: 'y2t2', grade: 10, tri: 2 },
   { key: 'y2t3', grade: 10, tri: 3 },
