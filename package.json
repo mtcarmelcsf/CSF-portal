@@ -1,0 +1,13 @@
+{
+  "name": "csf-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CSF Tracker: students check their CSF progress with their 7-digit school ID",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSF Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="seal">CSF</span> CSF Tracker</div>
+    <button id="logout" class="link-btn" hidden>Log out</button>
+  </header>
+
+  <main id="app"></main>
+
+  <template id="login-tpl">
+    <section class="login card">
+      <h1>CSF Tracker</h1>
+      <p class="muted">Log in with your 7-digit school ID.</p>
+      <form id="login-form">
+        <input id="login-id" inputmode="numeric" autocomplete="off" maxlength="7" pattern="\d{7}"
+               placeholder="e.g. 1234567" aria-label="7-digit school ID" required>
+        <button class="btn primary" type="submit">Log in</button>
+      </form>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
